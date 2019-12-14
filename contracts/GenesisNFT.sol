@@ -1,30 +1,31 @@
 pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721Full.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721Mintable.sol";
 
-contract GenesisNFT is ERC721Full, ERC721Mintable {
+contract GenesisNFT is ERC721Full {
+  	string ipfshash;
   	address payable beneficiary;
   	uint256 basePrice;
   	uint256 multiplier; 
   	uint256 divisor;
   	uint256 limit;
 
-  	uint256 unitsCreated;
+  	uint256 serialNumber;
   	uint256 currentPrice;
 
   	event TokenPurchase(address indexed purchaser, uint256 indexed serialNumber, uint256 price);
 
-  // "GenesisNFT", "GNFT", "0x85A363699C6864248a6FfCA66e4a1A5cCf9f5567", "100000000000000000", 11, 10, 100
-
-  constructor(string memory name, string memory symbol, address payable _beneficiary, uint256 _basePrice, uint256 _multiplier, uint256 _divisor, uint256 _limit) 													ERC721Full(name, symbol ) public {
+  // "GenesisNFT", "GNFT", "QmbtWkKnstd3Co3rWcD7woYZAKxk7yyzmf3DcGTM5fBc2N", 0x85A363699C6864248a6FfCA66e4a1A5cCf9f5567", "100000000000000000", 11, 10, 100
+  // price 0.1 ETH, each next being 11/10 of the previous price, limit to 100
+  constructor(string memory name, string memory symbol, string memory _ipfshash, address payable _beneficiary, uint256 _basePrice, uint256 _multiplier, uint256 _divisor, uint256 _limit) 													ERC721Full(name, symbol ) public {
+  	ipfshash = _ipfshash;
   	beneficiary = _beneficiary;
   	basePrice = _basePrice;
   	multiplier = _multiplier; 
   	divisor = _divisor;
   	limit = _limit;
 
-  	unitsCreated = 0; // regardless the built-in function keeping count, holding a separate registr
+  	serialNumber = 0;
   	currentPrice = basePrice;
   }
 
@@ -34,7 +35,7 @@ contract GenesisNFT is ERC721Full, ERC721Mintable {
   }
 
   function buy() payable public {
-  	require(unitsCreated < limit, "too many units created");
+  	require(serialNumber < limit, "too many units created");
   	require(msg.value >= currentPrice, "you need to send more ETH");
 
   	uint256 refund = msg.value - currentPrice;
@@ -42,10 +43,10 @@ contract GenesisNFT is ERC721Full, ERC721Mintable {
   	msg.sender.transfer(refund);
   	beneficiary.transfer(currentPrice);
 
-  	safeMint(msg.sender, unitsCreated); // sequential token ID
-  	emit TokenPurchase(msg.sender, unitsCreated, currentPrice);
+  	_safeMint(msg.sender, serialNumber); // internal function
+  	emit TokenPurchase(msg.sender, serialNumber, currentPrice);
 
-  	unitsCreated++;
+  	serialNumber++;
   	currentPrice = currentPrice.mul(multiplier).div(divisor); // * 11 / 10
   }
 

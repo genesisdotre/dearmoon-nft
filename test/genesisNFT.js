@@ -13,6 +13,7 @@ contract('GenesisNFT', async function(accounts) {
 
     const name = "GenesisNFT";
     const symbol = "GNFT";  
+    const ipfshash = "something";
     const basePrice = "100000000000000000";
     const multiplier = 11;
     const divisor = 10;
@@ -20,7 +21,7 @@ contract('GenesisNFT', async function(accounts) {
 
 
     it('Guy 1 buying for exact value, guy 2 paying too much and being refunded', async () => {
-        let genesisNFT = await GenesisNFT.new(name, symbol, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
+        let genesisNFT = await GenesisNFT.new(name, symbol, ipfshash, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
 
         let guy1BalanceBefore = parseFloat(fromWei(await web3.eth.getBalance(guy1)));
         await genesisNFT.sendTransaction({ value: toWei("0.1"), from: guy1 });
@@ -38,7 +39,7 @@ contract('GenesisNFT', async function(accounts) {
     });    
 
     it('Guy 1 2 3 buying, guy 4 being rejected', async () => {
-        let genesisNFT = await GenesisNFT.new(name, symbol, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
+        let genesisNFT = await GenesisNFT.new(name, symbol, ipfshash, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
         let beneficiaryBalanceBefore = parseFloat(fromWei(await web3.eth.getBalance(beneficiary)));
 
         await genesisNFT.sendTransaction({ value: toWei("0.1"), from: guy1 });
@@ -51,15 +52,13 @@ contract('GenesisNFT', async function(accounts) {
 
         // BENEFICIARY TO HAVE THE CORRECT BALANCE
         let beneficiaryBalanceAfter = parseFloat(fromWei(await web3.eth.getBalance(beneficiary)));
-        assert..closeTo(beneficiaryBalanceBefore + 0.1 + 0.11 + 0.121, beneficiaryBalanceAfter, 0.0000001, "beneficiary should benefit");
+        assert.closeTo(beneficiaryBalanceBefore + 0.1 + 0.11 + 0.121, beneficiaryBalanceAfter, 0.0000001, "beneficiary should benefit");
 
         // ALSO SOME SANITY CHECK IF THE ERC721 is working fine (sanity check, not comprehensive)
         await expectThrow( genesisNFT.safeTransferFrom(guy3, guy2, 2, {from: guy4}) );
         await genesisNFT.safeTransferFrom(guy3, guy2, 2, {from: guy3});
         let balanceOfGuy2 = await genesisNFT.balanceOf(guy2)
         assert.equal(balanceOfGuy2, 2, "guy 2 should have exactly 2 tokens");
-
-        console.log("Hurray, I think the tests are passing");
     });
 
   })

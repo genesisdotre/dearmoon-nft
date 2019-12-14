@@ -1154,144 +1154,57 @@ contract ERC721Full is ERC721, ERC721Enumerable, ERC721Metadata {
     }
 }
 
-// File: @openzeppelin/contracts/access/Roles.sol
-
-pragma solidity ^0.5.0;
-
-/**
- * @title Roles
- * @dev Library for managing addresses assigned to a Role.
- */
-library Roles {
-    struct Role {
-        mapping (address => bool) bearer;
-    }
-
-    /**
-     * @dev Give an account access to this role.
-     */
-    function add(Role storage role, address account) internal {
-        require(!has(role, account), "Roles: account already has role");
-        role.bearer[account] = true;
-    }
-
-    /**
-     * @dev Remove an account's access to this role.
-     */
-    function remove(Role storage role, address account) internal {
-        require(has(role, account), "Roles: account does not have role");
-        role.bearer[account] = false;
-    }
-
-    /**
-     * @dev Check if an account has this role.
-     * @return bool
-     */
-    function has(Role storage role, address account) internal view returns (bool) {
-        require(account != address(0), "Roles: account is the zero address");
-        return role.bearer[account];
-    }
-}
-
-// File: @openzeppelin/contracts/access/roles/MinterRole.sol
+// File: contracts/GenesisNFT.sol
 
 pragma solidity ^0.5.0;
 
 
+contract GenesisNFT is ERC721Full {
+  	string ipfshash;
+  	address payable beneficiary;
+  	uint256 basePrice;
+  	uint256 multiplier; 
+  	uint256 divisor;
+  	uint256 limit;
 
-contract MinterRole is Context {
-    using Roles for Roles.Role;
+  	uint256 serialNumber;
+  	uint256 currentPrice;
 
-    event MinterAdded(address indexed account);
-    event MinterRemoved(address indexed account);
+  	event TokenPurchase(address indexed purchaser, uint256 indexed serialNumber, uint256 price);
 
-    Roles.Role private _minters;
+  // "GenesisNFT", "GNFT", "QmbtWkKnstd3Co3rWcD7woYZAKxk7yyzmf3DcGTM5fBc2N", 0x85A363699C6864248a6FfCA66e4a1A5cCf9f5567", "100000000000000000", 11, 10, 100
+  // price 0.1 ETH, each next being 11/10 of the previous price, limit to 100
+  constructor(string memory name, string memory symbol, string memory _ipfshash, address payable _beneficiary, uint256 _basePrice, uint256 _multiplier, uint256 _divisor, uint256 _limit) 													ERC721Full(name, symbol ) public {
+  	ipfshash = _ipfshash;
+  	beneficiary = _beneficiary;
+  	basePrice = _basePrice;
+  	multiplier = _multiplier; 
+  	divisor = _divisor;
+  	limit = _limit;
 
-    constructor () internal {
-        _addMinter(_msgSender());
-    }
-
-    modifier onlyMinter() {
-        require(isMinter(_msgSender()), "MinterRole: caller does not have the Minter role");
-        _;
-    }
-
-    function isMinter(address account) public view returns (bool) {
-        return _minters.has(account);
-    }
-
-    function addMinter(address account) public onlyMinter {
-        _addMinter(account);
-    }
-
-    function renounceMinter() public {
-        _removeMinter(_msgSender());
-    }
-
-    function _addMinter(address account) internal {
-        _minters.add(account);
-        emit MinterAdded(account);
-    }
-
-    function _removeMinter(address account) internal {
-        _minters.remove(account);
-        emit MinterRemoved(account);
-    }
-}
-
-// File: @openzeppelin/contracts/token/ERC721/ERC721Mintable.sol
-
-pragma solidity ^0.5.0;
-
-
-
-/**
- * @title ERC721Mintable
- * @dev ERC721 minting logic.
- */
-contract ERC721Mintable is ERC721, MinterRole {
-    /**
-     * @dev Function to mint tokens.
-     * @param to The address that will receive the minted token.
-     * @param tokenId The token id to mint.
-     * @return A boolean that indicates if the operation was successful.
-     */
-    function mint(address to, uint256 tokenId) public onlyMinter returns (bool) {
-        _mint(to, tokenId);
-        return true;
-    }
-
-    /**
-     * @dev Function to safely mint tokens.
-     * @param to The address that will receive the minted token.
-     * @param tokenId The token id to mint.
-     * @return A boolean that indicates if the operation was successful.
-     */
-    function safeMint(address to, uint256 tokenId) public onlyMinter returns (bool) {
-        _safeMint(to, tokenId);
-        return true;
-    }
-
-    /**
-     * @dev Function to safely mint tokens.
-     * @param to The address that will receive the minted token.
-     * @param tokenId The token id to mint.
-     * @param _data bytes data to send along with a safe transfer check.
-     * @return A boolean that indicates if the operation was successful.
-     */
-    function safeMint(address to, uint256 tokenId, bytes memory _data) public onlyMinter returns (bool) {
-        _safeMint(to, tokenId, _data);
-        return true;
-    }
-}
-
-// File: contracts/NFT.sol
-
-pragma solidity ^0.5.0;
-
-
-
-contract MyNFT is ERC721Full, ERC721Mintable {
-  constructor() ERC721Full("MyNFT", "MNFT") public {
+  	serialNumber = 0;
+  	currentPrice = basePrice;
   }
+
+  // FALLBACK
+  function() external payable {
+  	buy();
+  }
+
+  function buy() payable public {
+  	require(serialNumber < limit, "too many units created");
+  	require(msg.value >= currentPrice, "you need to send more ETH");
+
+  	uint256 refund = msg.value - currentPrice;
+
+  	msg.sender.transfer(refund);
+  	beneficiary.transfer(currentPrice);
+
+  	_safeMint(msg.sender, serialNumber); // internal function
+  	emit TokenPurchase(msg.sender, serialNumber, currentPrice);
+
+  	serialNumber++;
+  	currentPrice = currentPrice.mul(multiplier).div(divisor); // * 11 / 10
+  }
+
 }
