@@ -8,14 +8,14 @@ contract GenesisNFT is ERC721Full, ERC721Mintable {
   	uint256 basePrice;
   	uint256 multiplier; 
   	uint256 divisor;
-  	unit256 limit;
+  	uint256 limit;
 
   	uint256 unitsCreated;
   	uint256 currentPrice;
 
   // "GenesisNFT", "GNFT", "0x85A363699C6864248a6FfCA66e4a1A5cCf9f5567", "100000000000000000", 11, 10, 100
 
-  constructor(string name, string symbol, address _beneficiary, uint256 _basePrice, uint256 _multiplier, uint256 _divisor, uint256 _limit) 													ERC721Full(name, symbol ) public {
+  constructor(string memory name, string memory symbol, address payable _beneficiary, uint256 _basePrice, uint256 _multiplier, uint256 _divisor, uint256 _limit) 													ERC721Full(name, symbol ) public {
   	beneficiary = _beneficiary;
   	basePrice = _basePrice;
   	multiplier = _multiplier; 
@@ -26,12 +26,23 @@ contract GenesisNFT is ERC721Full, ERC721Mintable {
   	currentPrice = basePrice;
   }
 
-  fallback() payable public {
+  // FALLBACK
+  function() external payable {
   	buy();
   }
 
-  buy() payable public {
+  function buy() payable public {
+  	require(unitsCreated <= limit, "too many units created");
+  	require(msg.value >= currentPrice, "you need to send more ETH");
 
+  	uint256 refund = msg.value - currentPrice;
+
+  	msg.sender.transfer(refund);
+  	beneficiary.transfer(currentPrice);
+  	
+  	safeMint(msg.sender, unitsCreated); // sequential token ID
+
+  	unitsCreated++;
   	currentPrice = currentPrice.mul(multiplier).div(divisor); // * 11 / 10
   }
 
