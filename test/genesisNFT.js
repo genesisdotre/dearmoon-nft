@@ -10,6 +10,8 @@ contract('GenesisNFT', async function(accounts) {
     const guy3 = accounts[3];
     const guy4 = accounts[4];
     const beneficiary = accounts[5];
+    const beneficiaryNew = accounts[6];
+    const beneficiaryNewNew = accounts[7];
 
     const name = "GenesisNFT";
     const symbol = "GNFT";  
@@ -18,6 +20,18 @@ contract('GenesisNFT', async function(accounts) {
     const multiplier = 11;
     const divisor = 10;
     const limit = 3;
+
+    it('Constructor work just fine', async () => {
+        let genesisNFT = await GenesisNFT.new(name, symbol, ipfshash, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
+        
+        assert.equal(await genesisNFT.name(), "GenesisNFT");
+        assert.equal(await genesisNFT.symbol(), "GNFT");
+        assert.equal(await genesisNFT.ipfshash(), "something");
+        assert.equal(await genesisNFT.basePrice(), "100000000000000000");
+        assert.equal(await genesisNFT.multiplier(), 11);
+        assert.equal(await genesisNFT.divisor(), 10);
+        assert.equal(await genesisNFT.limit(), 3);
+    });
 
 
     it('Guy 1 buying for exact value, guy 2 paying too much and being refunded', async () => {
@@ -61,4 +75,32 @@ contract('GenesisNFT', async function(accounts) {
         assert.equal(balanceOfGuy2, 2, "guy 2 should have exactly 2 tokens");
     });
 
-  })
+    it('Changing beneficiary should work', async () => {
+        let genesisNFT = await GenesisNFT.new(name, symbol, ipfshash, beneficiary, basePrice, multiplier, divisor, limit, { from: creator } );
+       
+        let beneficiaryBalanceBefore = parseFloat(fromWei(await web3.eth.getBalance(beneficiary)));
+        await genesisNFT.sendTransaction({ value: toWei("0.1"), from: guy1 });
+        let beneficiaryBalanceAfter = parseFloat(fromWei(await web3.eth.getBalance(beneficiary)));
+        assert.closeTo(beneficiaryBalanceBefore + 0.1, beneficiaryBalanceAfter, 0.0000001, "beneficiary should benefit");
+
+        // MOVING BENEFICIARY AS SOMEONE NOT AUTHORIZED
+        await expectThrow( genesisNFT.changeBeneficiary(guy2, {from: guy2}) );
+        await genesisNFT.changeBeneficiary(beneficiaryNew, {from: beneficiary})
+
+        let beneficiaryBalanceBefore2 = parseFloat(fromWei(await web3.eth.getBalance(beneficiaryNew)));
+        await genesisNFT.sendTransaction({ value: toWei("0.2"), from: guy1 });
+        let beneficiaryBalanceAfter2 = parseFloat(fromWei(await web3.eth.getBalance(beneficiaryNew)));
+        assert.closeTo(beneficiaryBalanceBefore2 + 0.11, beneficiaryBalanceAfter2, 0.0000001, "beneficiaryNew should benefit");
+
+        // MOVING ONCE AGAIN, THIS TIME AS OWNER
+        await genesisNFT.changeBeneficiary(beneficiaryNewNew, {from: creator})
+        let beneficiaryBalanceBefore3 = parseFloat(fromWei(await web3.eth.getBalance(beneficiaryNewNew)));
+        await genesisNFT.sendTransaction({ value: toWei("0.3"), from: guy1 });
+        let beneficiaryBalanceAfter3 = parseFloat(fromWei(await web3.eth.getBalance(beneficiaryNewNew)));
+        assert.closeTo(beneficiaryBalanceBefore3 + 0.121, beneficiaryBalanceAfter3, 0.0000001, "beneficiaryNewNew should benefit");
+
+        // Sanity check, guy 1 purchased 3 tokens
+        assert.equal(await genesisNFT.balanceOf(guy1), 3, "guy 1 should have exactly 3 tokens");
+    });
+
+})
